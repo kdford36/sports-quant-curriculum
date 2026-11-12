@@ -86,7 +86,38 @@ data/              local fallback for data (git-ignored)
 - VS Code with Jupyter. Notebook outputs are stripped on commit by `nbstripout`, so re-run notebooks to see outputs.
 - Paths and keys come from `.env` through `sportsquant.config` (`data_dir()`, `raw_dir(source)`, `db_path()`, `odds_api_key()`). Never hard-code machine paths.
 - Raw data goes to `DATA_DIR` (a cloud-synced folder). Save every paid API response raw, gzipped, before parsing, so it is never pulled twice. DuckDB lives at `DB_PATH`, local per machine, rebuilt from raw files.
-- Odds data: **The Odds API** (see `docs/DATA.md` for the plan and credit math). Historical calls cost 10 × markets × regions credits; check the `x-requests-remaining` header and estimate cost before any bulk pull.
+- Odds data: **The Odds API** (details in the next section and `docs/DATA.md`).
 - Other data: nflverse via `nflreadpy` (NFL), `nba_api` (NBA), public CBB sources; DFS salaries self-collected to start.
 - Libraries: NumPy, pandas, SciPy, DuckDB; later scikit-learn, XGBoost, statsmodels, PuLP, PyMC; PyTorch in extensions.
 - Never commit data files, API keys or `.env`.
+
+## The Odds API (odds data source)
+
+Kyle's paid odds source for historical and current lines. Base URL `https://api.the-odds-api.com/v4`; key from `config.odds_api_key()` (env `ODDS_API_KEY`), passed as the `apiKey` query parameter.
+
+**Plan:** one month of the 5M plan ($119) in late November 2026 for the historical backfill, then the 20K plan ($30/month) for ongoing collection. Check `PROGRESS.md` for which plan is active before any large pull.
+
+**Coverage:**
+- Sport keys: `basketball_nba`, `basketball_ncaab`, `americanfootball_nfl`.
+- Regions: `us` (DraftKings, FanDuel, BetMGM, Caesars...), `eu` (includes Pinnacle, the sharp reference for game lines), `us_dfs` (DFS pick'em sites).
+- History: game lines (`h2h`, `spreads`, `totals`) from June 2020; player props and period markets from May 3, 2023. Snapshots every 5 minutes.
+- NBA prop markets used: `player_points`, `player_rebounds`, `player_assists`, `player_threes`, `player_points_rebounds_assists`.
+
+**Endpoints and credit cost:**
+
+| Endpoint | Use | Credits per call |
+|---|---|---|
+| `/sports/{sport}/odds` | current game lines, all games | markets × regions |
+| `/sports/{sport}/events/{id}/odds` | current props, one game | markets × regions |
+| `/historical/sports/{sport}/events?date=` | games that existed at a time | 1 |
+| `/historical/sports/{sport}/odds?date=` | game lines snapshot, all games | 10 × markets × regions |
+| `/historical/sports/{sport}/events/{id}/odds?date=` | props snapshot, one game | 10 × markets × regions |
+
+Historical calls return the closest snapshot at or before `date`.
+
+**Rules for every pull:**
+1. Before any bulk pull, compute the expected credit cost, show it to Kyle, and get a yes.
+2. Run a small test first (one day) and compare the `x-requests-used` / `x-requests-remaining` response headers to the estimate.
+3. Save every raw response gzipped under `raw_dir("odds_api")` before parsing, keyed by sport, endpoint, event id and snapshot time. Skip any request whose raw file already exists, so a pull can resume and is never paid for twice.
+4. Log credits used per pull run, and stop if remaining credits would drop below 10% of the plan.
+5. Closing line = the last snapshot at or before the game's `commence_time`; never use a snapshot after it (look-ahead).
