@@ -1,19 +1,23 @@
 # Working across machines
 
-Git carries the code, notebooks, proofs, quizzes and `PROGRESS.md`. A cloud-synced folder carries the raw data. Each machine keeps its own `.env` and its own DuckDB file.
+Git carries the code, notebooks, proofs, quizzes and `PROGRESS.md`. Raw data lives in a local `sports-quant-data` folder, outside git and outside any cloud-sync folder. Each machine keeps its own `.env` and its own DuckDB file.
 
 | What | Where it lives | How it moves between machines |
 | --- | --- | --- |
-| Code, notebooks, proofs, quizzes, PROGRESS.md | Git repo | `git pull` / `git push` |
+| Code, notebooks, proofs, quizzes, PROGRESS.md | Git repo, in a local folder (not OneDrive/Drive) | `git pull` / `git push` |
 | Python environment | `.venv` (per machine) | Rebuilt from `uv.lock` by `uv sync` |
-| Raw data pulls (paid API responses) | `DATA_DIR` in a synced folder | Google Drive for desktop / OneDrive sync |
+| Raw data pulls (paid API responses) | `DATA_DIR`, a local `sports-quant-data` folder | Copied by hand (zip or external drive) |
 | DuckDB database | `DB_PATH` (per machine, not synced) | Rebuilt from raw files |
 | API keys | `.env` (per machine, never committed) | Typed once per machine |
+
+Windows desktop (primary): repo at `C:\Users\kford\dev\sports-quant-curriculum`, data at `C:\Users\kford\dev\sports-quant-data`.
+
+Keep the repo out of OneDrive/Google Drive: git already syncs it, and a sync client touching `.git` and `.venv` causes file locks and can corrupt the repo.
 
 ## First time on a new machine
 
 1. Install Git, VS Code and Claude Code.
-2. Install Google Drive for desktop (or OneDrive) and make sure the `sports-quant-data` folder is syncing.
+2. Copy the `sports-quant-data` folder from the primary machine to a local folder. **Do this before any pull**: without it, the cache is empty and every paid call would be bought again.
 3. Clone and set up:
 
    ```
@@ -26,8 +30,9 @@ Git carries the code, notebooks, proofs, quizzes and `PROGRESS.md`. A cloud-sync
 
    This installs `uv`, builds `.venv` with Python 3.13 from the lock file, turns on notebook output stripping, creates `.env` and runs the tests.
 
-4. Edit `.env`: paste `ODDS_API_KEY` and set `DATA_DIR` to the synced folder's path on this machine.
-5. Open the folder in VS Code and pick the `.venv` interpreter.
+4. Edit `.env`: type in `ODDS_API_KEY` and set `DATA_DIR` to the local `sports-quant-data` path on this machine.
+5. Set this repo's git identity (personal account): `git config user.name "..."` and `git config user.email "..."`, without `--global`.
+6. Open the folder in VS Code and pick the `.venv` interpreter.
 
 ## Every session
 

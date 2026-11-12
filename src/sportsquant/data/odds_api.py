@@ -21,6 +21,8 @@ from __future__ import annotations
 import gzip
 import hashlib
 import json
+import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -90,7 +92,8 @@ def raw_path(root: Path, sport: str, endpoint: str, date: str, event_id: str | N
 class OddsApiClient:
     def __init__(self, api_key: str, raw_root: Path, plan_credits: int,
                  floor_frac: float = 0.10, session: requests.Session | None = None,
-                 base_url: str = BASE_URL, timeout: float = 30.0):
+                 base_url: str = BASE_URL, timeout: float = 30.0, max_retries: int = 5,
+                 sleep: Callable[[float], None] = time.sleep):
         self._api_key = api_key
         self.raw_root = Path(raw_root)
         self.plan_credits = plan_credits
@@ -98,6 +101,8 @@ class OddsApiClient:
         self.session = session or requests.Session()
         self.base_url = base_url
         self.timeout = timeout
+        self.max_retries = max_retries
+        self._sleep = sleep  # injectable so tests don't actually wait
         # Credit state, updated from every live response's headers.
         self.remaining: int | None = None
         self.used: int | None = None
@@ -106,10 +111,23 @@ class OddsApiClient:
         self.calls_cached = 0
 
     @classmethod
-    def from_config(cls, plan_credits: int, **kwargs) -> OddsApiClient:
+    def from_config(cls, plan_credits: int, sync: bool = True, **kwargs) -> OddsApiClient:
+        """Client using this machine's .env. ``sync`` loads the credit balance (free call)."""
         from sportsquant import config
 
-        return cls(config.odds_api_key(), config.raw_dir("odds_api"), plan_credits, **kwargs)
+        client = cls(config.odds_api_key(), config.raw_dir("odds_api"), plan_credits, **kwargs)
+        if sync:
+            client.sync_credits()
+        return client
+
+    def sync_credits(self) -> dict[str, int | None]:
+        """Load the credit balance with a free call (/sports costs 0 credits).
+
+        Without this, ``remaining`` is None until the first paid response arrives, so
+        the floor check cannot protect the first paid call of a run.
+        """
+        self._request("/sports", {}).raise_for_status()
+        return self.summary()
 
     # ---- public endpoints -------------------------------------------------
 
@@ -164,10 +182,7 @@ class OddsApiClient:
                 f"the floor of {self.floor:,}. Stopping."
             )
 
-        resp = self.session.get(self.base_url + url_path,
-                                params={**params, "apiKey": self._api_key},
-                                timeout=self.timeout)
-        self._read_credit_headers(resp.headers)
+        resp = self._request(url_path, params)
         resp.raise_for_status()  # nothing is saved for an error response
         body = resp.json()
 
@@ -190,6 +205,18 @@ class OddsApiClient:
         self.spent_this_run += cost
         self._log(endpoint, sport, event_id, date, expected, cost)
         return Fetch(body, cached=False, credits_cost=cost, path=path)
+
+    def _request(self, url_path: str, params: dict[str, str]):
+        """GET with the key attached. Waits and retries on 429 (rate limited): 1s, 2s, 4s..."""
+        for attempt in range(self.max_retries + 1):
+            resp = self.session.get(self.base_url + url_path,
+                                    params={**params, "apiKey": self._api_key},
+                                    timeout=self.timeout)
+            self._read_credit_headers(resp.headers)
+            if resp.status_code != 429 or attempt == self.max_retries:
+                return resp
+            self._sleep(2 ** attempt)
+        raise AssertionError("unreachable")
 
     def _read_credit_headers(self, headers) -> None:
         if (rem := _int(headers.get("x-requests-remaining"))) is not None:

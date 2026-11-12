@@ -47,7 +47,7 @@ class FakeSession:
         self.remaining -= cost
         headers = {"x-requests-last": str(cost), "x-requests-used": str(self.used),
                    "x-requests-remaining": str(self.remaining)}
-        return FakeResponse({"timestamp": params["date"], "data": [{"id": "abc"}]}, headers,
+        return FakeResponse({"timestamp": params.get("date"), "data": [{"id": "abc"}]}, headers,
                             self.status)
 
 
@@ -117,4 +117,49 @@ def test_error_response_saves_nothing(tmp_path):
     client, _ = make_client(tmp_path, status=422)
     with pytest.raises(RuntimeError):
         client.historical_events("basketball_nba", "2024-12-01T16:00:00Z")
+    assert not list(tmp_path.rglob("*.json.gz"))
+
+
+def test_sync_credits_arms_floor_before_first_paid_call(tmp_path):
+    # Without sync, remaining is None and the first paid call goes through unchecked.
+    client, session = make_client(tmp_path, remaining=500_040)
+    client.sync_credits()  # free /sports call loads remaining = 500,040
+    assert client.remaining == 500_040
+    with pytest.raises(CreditFloorError):
+        client.historical_event_odds("basketball_nba", "evt1", "2024-12-01T16:00:00Z",
+                                     NBA_PROPS, ["us"])
+    assert len(session.calls) == 1  # only the free call went out
+
+
+class RateLimitedSession(FakeSession):
+    """Answers 429 for the first ``n_limited`` calls, then behaves normally."""
+
+    def __init__(self, n_limited, **kwargs):
+        super().__init__(**kwargs)
+        self.n_limited = n_limited
+
+    def get(self, url, params, timeout):
+        if len(self.calls) < self.n_limited:
+            self.calls.append((url, params))
+            return FakeResponse({}, {}, status=429)
+        return super().get(url, params, timeout)
+
+
+def test_retries_on_429_with_backoff(tmp_path):
+    waits = []
+    session = RateLimitedSession(n_limited=2)
+    client = OddsApiClient("SECRET", tmp_path, plan_credits=5_000_000, session=session,
+                           sleep=waits.append)
+    f = client.historical_events("basketball_nba", "2024-12-01T16:00:00Z")
+    assert waits == [1, 2]
+    assert len(session.calls) == 3 and f.credits_cost == 1
+
+
+def test_gives_up_after_max_retries_and_saves_nothing(tmp_path):
+    session = RateLimitedSession(n_limited=99)
+    client = OddsApiClient("SECRET", tmp_path, plan_credits=5_000_000, session=session,
+                           sleep=lambda s: None, max_retries=2)
+    with pytest.raises(RuntimeError, match="429"):
+        client.historical_events("basketball_nba", "2024-12-01T16:00:00Z")
+    assert len(session.calls) == 3
     assert not list(tmp_path.rglob("*.json.gz"))

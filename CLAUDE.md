@@ -85,7 +85,7 @@ data/              local fallback for data (git-ignored)
 - Python 3.13 managed by **uv**: `uv sync --all-extras` builds `.venv` from `uv.lock`. Add packages with `uv add` (never `pip install`) and commit `pyproject.toml` and `uv.lock` together. Run things with `uv run` (e.g. `uv run pytest`).
 - VS Code with Jupyter. Notebook outputs are stripped on commit by `nbstripout`, so re-run notebooks to see outputs.
 - Paths and keys come from `.env` through `sportsquant.config` (`data_dir()`, `raw_dir(source)`, `db_path()`, `odds_api_key()`). Never hard-code machine paths.
-- Raw data goes to `DATA_DIR` (a cloud-synced folder). Save every paid API response raw, gzipped, before parsing, so it is never pulled twice. DuckDB lives at `DB_PATH`, local per machine, rebuilt from raw files.
+- Raw data goes to `DATA_DIR` (a local `sports-quant-data` folder, not cloud-synced; copy it to a new machine before pulling there). Save every paid API response raw, gzipped, before parsing, so it is never pulled twice. DuckDB lives at `DB_PATH`, local per machine, rebuilt from raw files.
 - Odds data: **The Odds API** (details in the next section and `docs/DATA.md`).
 - Other data: nflverse via `nflreadpy` (NFL), `nba_api` (NBA), public CBB sources; DFS salaries self-collected to start.
 - Libraries: NumPy, pandas, SciPy, DuckDB; later scikit-learn, XGBoost, statsmodels, PuLP, PyMC; PyTorch in extensions.
