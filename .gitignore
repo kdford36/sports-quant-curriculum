@@ -1,0 +1,31 @@
+# Secrets: each machine keeps its own .env (copy from .env.example)
+.env
+
+# Data lives outside git: raw pulls in DATA_DIR (synced folder), DuckDB rebuilt per machine
+data/*
+!data/README.md
+*.duckdb
+*.duckdb.wal
+*.parquet
+*.csv
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Editors / OS
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+desktop.ini

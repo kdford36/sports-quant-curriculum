@@ -1,0 +1,10 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv",
+  "python.testing.pytestEnabled": true,
+  "python.testing.pytestArgs": ["tests"],
+  "jupyter.notebookFileRoot": "${workspaceFolder}",
+  "files.eol": "\n",
+  "[python]": {
+    "editor.rulers": [100]
+  }
+}

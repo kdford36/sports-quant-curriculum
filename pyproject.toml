@@ -1,0 +1,45 @@
+[project]
+name = "sportsquant"
+version = "0.1.0"
+description = "Kyle's sports quant curriculum: ML, applied math and statistics for sportsbook and DFS pricing"
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "numpy>=2.1",
+    "pandas>=2.2",
+    "pyarrow>=17",
+    "scipy>=1.14",
+    "duckdb>=1.1",
+    "requests>=2.32",
+    "python-dotenv>=1.0",
+    "matplotlib>=3.9",
+]
+
+[project.optional-dependencies]
+# Added as the curriculum reaches each phase, so early installs stay light.
+models = ["scikit-learn>=1.5", "statsmodels>=0.14", "xgboost>=2.1"]
+optim = ["pulp>=2.9"]
+bayes = ["pymc>=5.16", "arviz>=0.19"]
+sports = ["nba_api>=1.5", "nflreadpy>=0.1"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "ipykernel>=6.29",
+    "nbstripout>=0.8",
+    "ruff>=0.7",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sportsquant"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
