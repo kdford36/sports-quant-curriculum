@@ -74,7 +74,7 @@ tests/             pytest suite for src/
 proofs/            Kyle's proofs (Markdown + LaTeX)
 quizzes/           questions, answers, scores
 interviews/        mock-interview transcripts and scorecards
-docs/              SETUP.md (multi-machine), DATA.md (sources, odds plan)
+docs/              SETUP.md (multi-machine), DATA.md (sources, odds plan), KICKOFF.md (first-session prompts)
 scripts/           setup.ps1 / setup.sh for a new machine
 data/              local fallback for data (git-ignored)
 ```
