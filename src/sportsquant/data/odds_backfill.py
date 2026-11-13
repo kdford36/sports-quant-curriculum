@@ -20,7 +20,15 @@ from sportsquant.data.odds_schedule import et_clock, games_on, parse_utc, start_
 
 NBA_PROPS = ["player_points", "player_rebounds", "player_assists", "player_threes",
              "player_points_rebounds_assists"]
+NFL_PROPS = ["player_pass_yds", "player_pass_tds", "player_pass_attempts",
+             "player_pass_completions", "player_pass_interceptions", "player_rush_yds",
+             "player_rush_attempts", "player_receptions", "player_reception_yds",
+             "player_anytime_td"]
 LINES = ["h2h", "spreads", "totals"]
+
+# Props per sport: (markets, days before game day for the early 10 AM ET snapshot).
+# NFL early prices come the day before: game-day 10 AM is only 3h before a 1 PM kickoff.
+PROPS = {"basketball_nba": (NBA_PROPS, 0), "americanfootball_nfl": (NFL_PROPS, 1)}
 
 PROPS_START = date(2023, 5, 3)  # first day of historical player props
 
@@ -45,6 +53,10 @@ PLANS: dict[tuple[str, str], list[tuple[str, str | None]]] = {
     ("basketball_nba", "lines"): [("2020-07-22", "2020-10-15"), ("2020-12-01", "2021-07-25"),
                                   ("2021-10-01", "2022-06-30"), ("2022-10-01", "2023-06-30"),
                                   *_NBA_FROM_2023],
+    # Added 2026-11-12: NFL props from the first season with props history.
+    ("americanfootball_nfl", "props"): [("2023-09-01", "2024-02-15"),
+                                        ("2024-09-01", "2025-02-15"),
+                                        ("2025-09-01", "2026-02-15"), ("2026-09-01", None)],
 }
 # What the one-day test pull (scripts/odds_pull_day.py) covers: the original core plan.
 CORE = [("basketball_nba", "props"), ("basketball_ncaab", "lines"),
@@ -99,13 +111,14 @@ def calls_for_day(sport: str, product: str, day: date, events: list[dict]) -> li
     if product == "props":
         if day < PROPS_START:
             return []
-        cost = estimate_cost("historical_event_odds", NBA_PROPS, ["us"])
-        morning = et_clock(day, 10)
+        markets, days_before = PROPS[sport]
+        cost = estimate_cost("historical_event_odds", markets, ["us"])
+        early = et_clock(day - timedelta(days=days_before), 10)
         out = []
         for g in todays:
-            for when in (morning, g["commence_time"]):
+            for when in (early, g["commence_time"]):
                 if parse_utc(when) <= parse_utc(g["commence_time"]):
-                    out.append(Call("event_odds", (sport, g["id"], when, NBA_PROPS, ["us"]),
+                    out.append(Call("event_odds", (sport, g["id"], when, markets, ["us"]),
                                     cost))
         return out
     cost = estimate_cost("historical_odds", LINES, ["us", "eu"])
@@ -114,11 +127,22 @@ def calls_for_day(sport: str, product: str, day: date, events: list[dict]) -> li
 
 
 def plan_batch(client: OddsApiClient, batch: Batch) -> list[Call]:
-    """Fetch (or read cached) each day's game list and return the batch's paid calls."""
+    """Fetch (or read cached) each day's game list and return the batch's paid calls.
+
+    Props are per game, so a game that moves (NFL flex scheduling) and shows up in two
+    days' lists is planned once, on the last day it was listed (the most current time).
+    """
     calls = []
+    latest: dict[str, tuple[date, dict]] = {}
     for day in batch.days():
         events = client.historical_events(batch.sport, et_clock(day, 10)).body["data"]
-        calls.extend(calls_for_day(batch.sport, batch.product, day, events))
+        if batch.product == "props":
+            for g in games_on(events, day):
+                latest[g["id"]] = (day, g)
+        else:
+            calls.extend(calls_for_day(batch.sport, batch.product, day, events))
+    for day, g in sorted(latest.values(), key=lambda dg: (dg[0], dg[1]["commence_time"])):
+        calls.extend(calls_for_day(batch.sport, batch.product, day, [g]))
     return calls
 
 

@@ -24,18 +24,21 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("day", type=date.fromisoformat)
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--only", nargs="*", metavar="SPORT:PRODUCT",
+                    help="e.g. americanfootball_nfl:props (default: the core plan)")
     a = ap.parse_args()
+    pairs = [tuple(p.split(":")) for p in a.only] if a.only else CORE
 
     client = OddsApiClient.from_config(5_000_000)
     start_used = client.used
     plan = {}
-    for sport, product in CORE:
+    for sport, product in pairs:
         events = client.historical_events(sport, et_clock(a.day, 10)).body["data"]
-        plan[sport] = calls_for_day(sport, product, a.day, events)
+        plan[f"{sport} {product}"] = calls_for_day(sport, product, a.day, events)
 
     print(f"Plan for {a.day} (remaining {client.remaining:,}):")
     for sport, calls in plan.items():
-        print(f"  {sport:22s} {len(calls):3d} calls  expected {sum(c.expected for c in calls):6,}")
+        print(f"  {sport:28s} {len(calls):3d} calls  expected {sum(c.expected for c in calls):6,}")
     if a.dry_run:
         return
 
@@ -52,7 +55,7 @@ def main() -> None:
             cached += f.cached
             if not f.cached:
                 costs[f.credits_cost] += 1
-        print(f"  {sport:22s} expected {sum(c.expected for c in calls):6,}  actual {actual:6,}"
+        print(f"  {sport:28s} expected {sum(c.expected for c in calls):6,}  actual {actual:6,}"
               f"  cached {cached}  per-call costs {dict(costs)}")
         for err in errors:
             print(f"    error {err}")

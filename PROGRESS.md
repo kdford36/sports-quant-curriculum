@@ -38,12 +38,24 @@
   | **Total** | **6,334** | **332,250** | **332,190** | **0** | **done 2026-11-12** |
 
   Every lines call cost exactly 60. No NBA lines gaps.
-- **Credits used so far:** 1,341,675 of 5,000,000; remaining 3,658,325 (2026-11-12, all approved pulls complete).
+
+  NFL props (us, 10 markets: pass yds/TDs/attempts/completions/INTs, rush yds/attempts, receptions, rec yds, anytime TD). Two snapshots per game: 10 AM ET the **day before** (early price) and kickoff (closing). Props history starts 2023-05-03, so 2023-24 is the first season (checked: the API returns a 422 for Super Bowl LVII props, at no cost).
+
+  | Step | Calls | Est (max) | Spent (headers) | Errors | Status |
+  |---|---|---|---|---|---|
+  | Test pull, Sunday 2024-12-01 | 22 | 2,200 | 2,200 | 0 | done |
+  | NFL props, 2023-24 to 2026-11-11 | 1,960 | 196,000 | 193,560 | 1 (404) | done |
+  | **Total** | **1,982** | **198,200** | **195,760** | **1** | **done 2026-11-12** |
+
+  1,915 calls cost the full 100; 66 cost less (some markets not posted yet at the day-before snapshot). The 404 failed again on retry: the early snapshot of Rams @ Lions (2024-01-14 wild card) is missing; its closing snapshot is on disk.
+  The 2025-01-05 NFL game list repeats 12 games (same id and time); the props planner now plans each game once per season.
+- **Credits used so far:** 1,537,435 of 5,000,000; remaining 3,462,565 (2026-11-12, all approved pulls complete).
 
 ## Open items
 
 - [x] Odds API backfill: NBA props, CBB and NFL lines pulled through 2026-11-11 (2026-11-12). 7 NBA props snapshots permanently missing (404).
 - [x] NBA game lines pulled, 2019-20 bubble through 2026-11-11 (2026-11-12).
+- [x] NFL props pulled, 2023-24 through 2026-11-11 (2026-11-12). 1 early snapshot missing (404).
 - [ ] Optional before 2026-12-12: `us_dfs` props with the spare credits. Needs a cost estimate and Kyle's yes first.
 - [ ] Downgrade The Odds API to the 20K plan before 2026-12-12.
 - [x] Windows desktop: repo at `C:\Users\kford\dev\sports-quant-curriculum`, `DATA_DIR` local at `C:\Users\kford\dev\sports-quant-data` (not synced; copy it to any other machine before pulling there).
