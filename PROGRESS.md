@@ -18,15 +18,16 @@
   | Test pull 2024-12-01 | 23 | 1,780 | 1,780 | 0 | done |
   | Game lists (all sports, 10 AM ET daily) | 2,952 | 2,952 | 2,952 | 0 | done |
   | NBA props, 2023 playoffs to 2026-11-11 | 8,338 | 416,900 | 413,880 | 8 | done |
-  | CBB lines (us+eu), 2020-21 to now | 9,076 | 538,560 | | | next |
-  | NFL lines (us+eu), 2020 to now | 871 | 52,260 | | | |
+  | CBB lines (us+eu), 2020-21 to 2026-11-11 | 8,976 | 538,560 | 538,380 | 3 | done |
+  | NFL lines (us+eu), 2020 to now | 871 | 52,260 | | | next |
 
   NBA notes: billing is **per market returned**, not requested (39 calls cost 0, 11 cost 10-40; no props posted yet at 10 AM for some games). 7 calls got 404 (event id gone, likely rescheduled games) and 1 got a 502; a rerun retries only those 8.
-- **Credits used so far:** 418,615 of 5,000,000; remaining 4,581,385 (2026-11-12, after NBA).
+  CBB notes: every lines call cost exactly 60 (all markets always returned). 3 calls got a 502 (transient server error), to retry with the NBA failures.
+- **Credits used so far:** 956,995 of 5,000,000; remaining 4,043,005 (2026-11-12, after CBB).
 
 ## Open items
 
-- [ ] Odds API backfill: NBA done; CBB, then NFL, then one rerun to retry the 8 failed NBA calls. See docs/KICKOFF.md (session A) and docs/DATA.md.
+- [ ] Odds API backfill: NBA and CBB done; NFL next, then one rerun to retry the 11 failed calls (8 NBA, 3 CBB). See docs/KICKOFF.md (session A) and docs/DATA.md.
 - [ ] Downgrade The Odds API to the 20K plan before 2026-12-12.
 - [x] Windows desktop: repo at `C:\Users\kford\dev\sports-quant-curriculum`, `DATA_DIR` local at `C:\Users\kford\dev\sports-quant-data` (not synced; copy it to any other machine before pulling there).
 - [x] docs/SETUP.md and CLAUDE.md updated: `DATA_DIR` is a local folder, not a synced one.
