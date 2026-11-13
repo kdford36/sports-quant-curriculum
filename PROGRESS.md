@@ -21,7 +21,9 @@
   | CBB lines (us+eu), 2020-21 to 2026-11-11 | 8,976 | 538,560 | 538,380 | 3 | done |
   | NFL lines (us+eu), 2020-21 to 2026-11-11 | 871 | 52,260 | 52,260 | 0 | done |
   | Retry of failed calls | 11 | 580 | 230 | 7 | done |
-  | **Total** | **21,148** | **1,011,812** | **1,009,485** | **7** | **done 2026-11-12** |
+  | **Total** | **21,171** | **1,013,032** | **1,009,482** | **7** | **done 2026-11-12** |
+
+  The headers show 1,009,485 used: the 3 extra credits are from setup checks before the test pull.
 
   NBA notes: billing is **per market returned**, not requested (39 calls cost 0, 11 cost 10-40; no props posted yet at 10 AM for some games). 7 calls got 404 (event id gone, likely rescheduled games) and 1 got a 502; a rerun retries only those 8.
   CBB notes: every lines call cost exactly 60 (all markets always returned). 3 calls got a 502 (transient server error).
