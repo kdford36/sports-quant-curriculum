@@ -11,7 +11,7 @@
 
 - **Active plan:** 5M ($119/month), bought 2026-11-12.
 - **Renews:** about 2026-12-12. Downgrade to the 20K plan ($30) before then, once the backfill is verified.
-- **Backfill status:** core plan approved 2026-11-12 (exact plan from game lists: 18,185 calls, est 1,007,720). Not approved: `us_dfs` props, NBA game lines.
+- **Backfill status:** core plan approved 2026-11-12 (exact plan from game lists: 18,185 calls, est 1,007,720). NBA game lines approved and pulled the same day (second table). Not approved: `us_dfs` props.
 
   | Step | Calls | Est | Spent (headers) | Errors | Status |
   |---|---|---|---|---|---|
@@ -28,12 +28,23 @@
   NBA notes: billing is **per market returned**, not requested (39 calls cost 0, 11 cost 10-40; no props posted yet at 10 AM for some games). 7 calls got 404 (event id gone, likely rescheduled games) and 1 got a 502; a rerun retries only those 8.
   CBB notes: every lines call cost exactly 60 (all markets always returned). 3 calls got a 502 (transient server error).
   Retry: all 4 calls that got a 502 succeeded (230 credits). The 7 NBA 404s failed again and cost 0; they are permanent gaps (event ids the API no longer serves at those times), so those 7 props snapshots are missing. Raw files: `raw/odds_api` under `DATA_DIR`; logs `_credit_log.jsonl`, `_batch_log.jsonl`, `backfill_*.log`.
-- **Credits used so far:** 1,009,485 of 5,000,000; remaining 3,990,515 (2026-11-12, backfill complete).
+  NBA game lines (us+eu, one closing snapshot per start-time slot, product `lines`):
+
+  | Step | Calls | Est | Spent (headers) | Errors | Status |
+  |---|---|---|---|---|---|
+  | NBA game lists 2020-07-22 to 2023-05-02 | 810 | 810 | 810 | 0 | done |
+  | NBA lines, 2019-20 bubble to 2026-11-11 | 5,523 | 331,380 | 331,320 | 1 (502) | done |
+  | Retry of the 502 | 1 | 60 | 60 | 0 | done |
+  | **Total** | **6,334** | **332,250** | **332,190** | **0** | **done 2026-11-12** |
+
+  Every lines call cost exactly 60. No NBA lines gaps.
+- **Credits used so far:** 1,341,675 of 5,000,000; remaining 3,658,325 (2026-11-12, all approved pulls complete).
 
 ## Open items
 
 - [x] Odds API backfill: NBA props, CBB and NFL lines pulled through 2026-11-11 (2026-11-12). 7 NBA props snapshots permanently missing (404).
-- [ ] Decide whether to spend spare 5M credits before 2026-12-12 on unapproved extras (`us_dfs` props, NBA game lines). Needs Kyle's yes and a cost estimate first.
+- [x] NBA game lines pulled, 2019-20 bubble through 2026-11-11 (2026-11-12).
+- [ ] Optional before 2026-12-12: `us_dfs` props with the spare credits. Needs a cost estimate and Kyle's yes first.
 - [ ] Downgrade The Odds API to the 20K plan before 2026-12-12.
 - [x] Windows desktop: repo at `C:\Users\kford\dev\sports-quant-curriculum`, `DATA_DIR` local at `C:\Users\kford\dev\sports-quant-data` (not synced; copy it to any other machine before pulling there).
 - [x] docs/SETUP.md and CLAUDE.md updated: `DATA_DIR` is a local folder, not a synced one.

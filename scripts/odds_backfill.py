@@ -2,6 +2,7 @@
 
     uv run python scripts/odds_backfill.py --plan-only               # game lists only, exact cost
     uv run python scripts/odds_backfill.py --max-credits 1280000     # pull, batch by batch
+    uv run python scripts/odds_backfill.py --plan-only --sports basketball_nba --products lines
 
 Safe to stop and rerun: anything already saved is read from disk and costs 0.
 Each finished batch appends one line to <raw odds dir>/_batch_log.jsonl.
@@ -28,20 +29,20 @@ def say(msg: str) -> None:
     print(msg, flush=True)
 
 
-def build_plans(client, sports):
+def build_plans(client, sports, products):
     yesterday = date.today() - timedelta(days=1)
     plans = []
     say(f"Game lists through {yesterday} (remaining {client.remaining:,})")
-    for b in batches(yesterday, sports):
+    for b in batches(yesterday, sports, products):
         before = client.spent_this_run
         calls = plan_batch(client, b)
         todo = [c for c in calls if not call_path(client, c).exists()]
         cost = sum(c.expected for c in todo)
         plans.append((b, calls, todo))
-        say(f"  {b.name:30s} lists {client.spent_this_run - before:4d}cr  calls {len(calls):6,}"
+        say(f"  {b.name:36s} lists {client.spent_this_run - before:4d}cr  calls {len(calls):6,}"
             f"  to pull {len(todo):6,}  est {cost:9,}")
     total = sum(c.expected for _, _, todo in plans for c in todo)
-    say(f"  {'TOTAL to pull':30s} {sum(len(t) for _, _, t in plans):38,}  est {total:9,}")
+    say(f"  {'TOTAL to pull':36s} {sum(len(t) for _, _, t in plans):38,}  est {total:9,}")
     say(f"  game lists cost this run: {client.spent_this_run:,}; remaining {client.remaining:,}")
     return plans, total
 
@@ -76,7 +77,7 @@ def run_batch(client, batch, todo, max_credits, log_path):
             "minutes": round((time.time() - start_t) / 60, 1)}
     with open(log_path, "a", encoding="utf-8") as f:
         f.write(json.dumps(line) + "\n")
-    say(f"  DONE {batch.name:30s} spent {line['spent']:9,} / est {line['expected']:9,}"
+    say(f"  DONE {batch.name:36s} spent {line['spent']:9,} / est {line['expected']:9,}"
         f"  errors {len(errors):4d}  remaining {client.remaining:,}  ({line['minutes']} min)")
 
 
@@ -85,12 +86,14 @@ def main() -> None:
     ap.add_argument("--plan-only", action="store_true")
     ap.add_argument("--max-credits", type=int, help="hard cap on credits spent this run")
     ap.add_argument("--sports", nargs="*", help="limit to these sport keys")
+    ap.add_argument("--products", nargs="*", choices=["props", "lines"],
+                    help="limit to these products")
     a = ap.parse_args()
     if not a.plan_only and not a.max_credits:
         sys.exit("Pulling needs --max-credits (the approved budget).")
 
     client = OddsApiClient.from_config(PLAN_CREDITS)
-    plans, total = build_plans(client, a.sports)
+    plans, total = build_plans(client, a.sports, a.products)
     if a.plan_only:
         return
     if total > a.max_credits:

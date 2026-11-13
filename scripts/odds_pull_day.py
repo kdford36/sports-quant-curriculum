@@ -16,7 +16,7 @@ from datetime import date
 import requests
 
 from sportsquant.data.odds_api import OddsApiClient
-from sportsquant.data.odds_backfill import SEASONS, calls_for_day, run_call
+from sportsquant.data.odds_backfill import CORE, calls_for_day, run_call
 from sportsquant.data.odds_schedule import et_clock
 
 
@@ -29,9 +29,9 @@ def main() -> None:
     client = OddsApiClient.from_config(5_000_000)
     start_used = client.used
     plan = {}
-    for sport in SEASONS:
+    for sport, product in CORE:
         events = client.historical_events(sport, et_clock(a.day, 10)).body["data"]
-        plan[sport] = calls_for_day(sport, a.day, events)
+        plan[sport] = calls_for_day(sport, product, a.day, events)
 
     print(f"Plan for {a.day} (remaining {client.remaining:,}):")
     for sport, calls in plan.items():
