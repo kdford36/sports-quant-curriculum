@@ -39,6 +39,10 @@ def test_batches_stop_at_yesterday_and_skip_future_seasons():
     assert got[0].name == "americanfootball_nfl lines 2020-21"
     assert batches(date(2026, 8, 1), ["americanfootball_nfl"],
                    ["lines"])[-1].end == date(2026, 2, 15)
+    cfb = batches(date(2026, 11, 14), ["americanfootball_ncaaf"])
+    assert [b.name for b in cfb[:2]] == ["americanfootball_ncaaf lines 2020-21",
+                                         "americanfootball_ncaaf lines 2021-22"]
+    assert cfb[-1].end == date(2026, 11, 14) and len(cfb) == 7
     props = batches(date(2026, 11, 11), ["americanfootball_nfl"], ["props"])
     assert [b.name for b in props] == [f"americanfootball_nfl props {y}-{y - 1999}"
                                        for y in (2023, 2024, 2025, 2026)]
@@ -89,3 +93,22 @@ def test_props_plan_lists_each_game_once():
     assert [(c.args[1], c.args[2]) for c in calls] == [
         ("g", "2024-11-30T15:00:00Z"), ("g", "2024-12-01T18:00:00Z"),
         ("h", "2024-11-30T15:00:00Z"), ("h", "2024-12-01T21:25:00Z")]
+
+
+def test_soccer_lines_use_eu_uk_and_an_early_game_list():
+    from sportsquant.data.odds_backfill import list_hour
+    calls = calls_for_day("soccer_epl", "lines", date(2025, 3, 15),
+                          [ev("a", "2025-03-15T12:30:00Z"), ev("b", "2025-03-15T15:00:00Z")])
+    assert [(c.args[1], c.args[3], c.expected) for c in calls] == [
+        ("2025-03-15T12:30:00Z", ["eu", "uk"], 60), ("2025-03-15T15:00:00Z", ["eu", "uk"], 60)]
+    assert list_hour("soccer_epl") == 4 and list_hour("basketball_nba") == 10
+    epl = batches(date(2026, 11, 14), ["soccer_epl"], ["lines"])
+    assert epl[0].name == "soccer_epl lines 2019-20" and epl[1].name == "soccer_epl lines 2020-21"
+
+
+def test_soccer_props_early_snapshot_is_the_day_before():
+    soccer = calls_for_day("soccer_uefa_champs_league", "props", date(2025, 3, 11),
+                           [ev("u", "2025-03-11T17:45:00Z")])
+    assert [c.args[2] for c in soccer] == ["2025-03-10T14:00:00Z", "2025-03-11T17:45:00Z"]
+    assert all(c.args[4] == ["us"] and c.expected == 50 for c in soccer)
+    assert not batches(date(2026, 11, 14), products=["dfs"])  # pick'em props dropped

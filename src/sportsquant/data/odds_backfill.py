@@ -1,12 +1,15 @@
 """Plan the Odds API backfill: which days, which calls, what they cost.
 
-The plan is built from cheap game lists (1 credit per sport per day, at 10 AM ET):
+The plan is built from cheap game lists (1 credit per sport per day; 10 AM ET, or 4 AM ET
+for soccer so early European kickoffs are still listed). Products:
 
-- props (NBA, us): one call per game at 10 AM ET (early price) and at tip-off (closing).
-- lines (NBA, CBB, NFL; us + eu): one sport-wide snapshot per start-time slot (closing).
+- lines: one sport-wide snapshot per start-time slot (closing). US sports us + eu
+  (Pinnacle); soccer eu + uk (Pinnacle, Betfair exchange).
+- props (sportsbooks, us): one call per game at 10 AM ET (game day for NBA, the day
+  before for NFL and soccer) and at the start (closing).
 
-Each snapshot is requested *at* a start time; the API returns the latest snapshot at or
-before it, so a closing line never looks ahead. Batches are (sport, product, season).
+Each snapshot is requested *at* a time; the API returns the latest snapshot at or before
+it, so a closing line never looks ahead. Batches are (sport, product, season).
 """
 
 from __future__ import annotations
@@ -24,39 +27,73 @@ NFL_PROPS = ["player_pass_yds", "player_pass_tds", "player_pass_attempts",
              "player_pass_completions", "player_pass_interceptions", "player_rush_yds",
              "player_rush_attempts", "player_receptions", "player_reception_yds",
              "player_anytime_td"]
+SOCCER_PROPS = ["player_goal_scorer_anytime", "player_shots", "player_shots_on_target",
+                "player_assists", "player_to_receive_card"]
 LINES = ["h2h", "spreads", "totals"]
 
+SOCCER = ["soccer_epl", "soccer_spain_la_liga", "soccer_uefa_champs_league"]
+
 # Props per sport: (markets, days before game day for the early 10 AM ET snapshot).
-# NFL early prices come the day before: game-day 10 AM is only 3h before a 1 PM kickoff.
-PROPS = {"basketball_nba": (NBA_PROPS, 0), "americanfootball_nfl": (NFL_PROPS, 1)}
+# NFL and soccer early prices come the day before: game-day 10 AM ET is too close to
+# a 1 PM NFL kickoff and after most European kickoffs.
+PROPS = {"basketball_nba": (NBA_PROPS, 0), "americanfootball_nfl": (NFL_PROPS, 1),
+         **{s: (SOCCER_PROPS, 1) for s in SOCCER}}
+PROPS_REGIONS = ["us"]
 
 PROPS_START = date(2023, 5, 3)  # first day of historical player props
 
+
+def lines_regions(sport: str) -> list[str]:
+    return ["eu", "uk"] if sport.startswith("soccer_") else ["us", "eu"]
+
+
+def list_hour(sport: str) -> int:
+    """ET hour of the daily game list: before the day's first start."""
+    return 4 if sport.startswith("soccer_") else 10
+
+
+def _seasons(first: int, start: str, end: str, last: int = 2025):
+    """Windows first..last (start mm-dd to next year's end mm-dd), then the current season
+    through yesterday."""
+    return ([(f"{y}-{start}", f"{y + 1}-{end}") for y in range(first, last + 1)]
+            + [(f"{last + 1}-{start}", None)])
+
+
 # In-season windows per (sport, product), generous on both ends (an empty day costs only
-# its 1-credit game list). None as the end means "through yesterday". Game lines exist
-# from June 2020, props from 2023-05-03.
-_NBA_FROM_2023 = [("2023-10-01", "2024-06-30"), ("2024-10-01", "2025-06-30"),
-                  ("2025-10-01", "2026-06-30"), ("2026-10-01", None)]
+# its 1-credit game list, an empty props call costs 0). None as the end means "through
+# yesterday". Game lines exist from June 2020, props from 2023-05-03.
+_NBA_FROM_2023 = _seasons(2023, "10-01", "06-30")
 PLANS: dict[tuple[str, str], list[tuple[str, str | None]]] = {
+    # Core plan, approved 2026-11-12.
     ("basketball_nba", "props"): [("2023-05-03", "2023-06-30"), *_NBA_FROM_2023],
-    ("basketball_ncaab", "lines"): [("2020-11-25", "2021-04-10"), ("2021-11-01", "2022-04-10"),
-                                    ("2022-11-01", "2023-04-10"), ("2023-11-01", "2024-04-10"),
-                                    ("2024-11-01", "2025-04-10"), ("2025-11-01", "2026-04-10"),
-                                    ("2026-11-01", None)],
-    ("americanfootball_nfl", "lines"): [("2020-09-01", "2021-02-15"),
-                                        ("2021-09-01", "2022-02-15"),
-                                        ("2022-09-01", "2023-02-15"),
-                                        ("2023-09-01", "2024-02-15"),
-                                        ("2024-09-01", "2025-02-15"),
-                                        ("2025-09-01", "2026-02-15"), ("2026-09-01", None)],
-    # Added 2026-11-12 after the core backfill: the 2020 bubble restart, then full seasons.
+    ("basketball_ncaab", "lines"): [("2020-11-25", "2021-04-10"),
+                                    *_seasons(2021, "11-01", "04-10")],
+    ("americanfootball_nfl", "lines"): _seasons(2020, "09-01", "02-15"),
+    # 2026-11-12: NBA lines from the 2020 bubble restart; NFL props.
     ("basketball_nba", "lines"): [("2020-07-22", "2020-10-15"), ("2020-12-01", "2021-07-25"),
                                   ("2021-10-01", "2022-06-30"), ("2022-10-01", "2023-06-30"),
                                   *_NBA_FROM_2023],
-    # Added 2026-11-12: NFL props from the first season with props history.
-    ("americanfootball_nfl", "props"): [("2023-09-01", "2024-02-15"),
-                                        ("2024-09-01", "2025-02-15"),
-                                        ("2025-09-01", "2026-02-15"), ("2026-09-01", None)],
+    ("americanfootball_nfl", "props"): _seasons(2023, "09-01", "02-15"),
+    # 2026-11-15: CFB lines, week 0 (late Aug) through the CFP title game (Jan).
+    ("americanfootball_ncaaf", "lines"): [("2020-08-25", "2021-01-20"),
+                                          *_seasons(2021, "08-20", "01-25")],
+    # 2026-11-15: soccer lines from the June 2020 restart (2020 UCL final eight in August).
+    ("soccer_epl", "lines"): [("2020-06-10", "2020-07-31"), ("2020-09-05", "2021-05-31"),
+                              *_seasons(2021, "08-01", "05-31")],
+    ("soccer_spain_la_liga", "lines"): [("2020-06-05", "2020-07-31"),
+                                        ("2020-09-05", "2021-05-31"),
+                                        *_seasons(2021, "08-01", "06-05")],
+    ("soccer_uefa_champs_league", "lines"): [("2020-07-31", "2020-08-31"),
+                                             ("2020-10-15", "2021-06-05"),
+                                             *_seasons(2021, "09-01", "06-05")],
+    # 2026-11-15: soccer props (us books) from the end of 2022-23.
+    ("soccer_epl", "props"): [("2023-05-03", "2023-05-31"), *_seasons(2023, "08-01", "05-31")],
+    ("soccer_spain_la_liga", "props"): [("2023-05-03", "2023-06-05"),
+                                        *_seasons(2023, "08-01", "06-05")],
+    ("soccer_uefa_champs_league", "props"): [("2023-05-03", "2023-06-15"),
+                                             *_seasons(2023, "09-01", "06-05")],
+    # Pick'em props (us_dfs region: PrizePicks, Underdog; from 2024-25) were priced and
+    # dropped 2026-11-15. They are not DFS salary data.
 }
 # What the one-day test pull (scripts/odds_pull_day.py) covers: the original core plan.
 CORE = [("basketball_nba", "props"), ("basketball_ncaab", "lines"),
@@ -73,7 +110,7 @@ class Call:
 @dataclass(frozen=True)
 class Batch:
     sport: str
-    product: str  # "props" or "lines"
+    product: str  # "lines" or "props"
     start: date
     end: date
 
@@ -112,30 +149,33 @@ def calls_for_day(sport: str, product: str, day: date, events: list[dict]) -> li
         if day < PROPS_START:
             return []
         markets, days_before = PROPS[sport]
-        cost = estimate_cost("historical_event_odds", markets, ["us"])
+        regions = PROPS_REGIONS
+        cost = estimate_cost("historical_event_odds", markets, regions)
         early = et_clock(day - timedelta(days=days_before), 10)
         out = []
         for g in todays:
             for when in (early, g["commence_time"]):
                 if parse_utc(when) <= parse_utc(g["commence_time"]):
-                    out.append(Call("event_odds", (sport, g["id"], when, markets, ["us"]),
+                    out.append(Call("event_odds", (sport, g["id"], when, markets, regions),
                                     cost))
         return out
-    cost = estimate_cost("historical_odds", LINES, ["us", "eu"])
-    return [Call("odds", (sport, slot, LINES, ["us", "eu"]), cost)
-            for slot in start_slots(todays)]
+    regions = lines_regions(sport)
+    cost = estimate_cost("historical_odds", LINES, regions)
+    return [Call("odds", (sport, slot, LINES, regions), cost) for slot in start_slots(todays)]
 
 
 def plan_batch(client: OddsApiClient, batch: Batch) -> list[Call]:
     """Fetch (or read cached) each day's game list and return the batch's paid calls.
 
-    Props are per game, so a game that moves (NFL flex scheduling) and shows up in two
-    days' lists is planned once, on the last day it was listed (the most current time).
+    Props plan each game once, from the last day it was listed: one day's
+    list can repeat a game (the API did on 2025-01-05 NFL), and a moved game shows up in
+    two days' lists.
     """
     calls = []
     latest: dict[str, tuple[date, dict]] = {}
+    hour = list_hour(batch.sport)
     for day in batch.days():
-        events = client.historical_events(batch.sport, et_clock(day, 10)).body["data"]
+        events = client.historical_events(batch.sport, et_clock(day, hour)).body["data"]
         if batch.product == "props":
             for g in games_on(events, day):
                 latest[g["id"]] = (day, g)
