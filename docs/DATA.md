@@ -45,7 +45,22 @@ Markets for NBA props: `player_points`, `player_rebounds`, `player_assists`, `pl
 | NBA box scores, play-by-play | `nba_api` |
 | NFL play-by-play, schedules (schedules also carry closing spread and total) | nflverse via `nflreadpy` |
 | CBB games and team stats | public CBB packages and sites, chosen in Phase 2 |
-| DFS salaries | self-collected slate CSVs to start |
+| DFS salaries | self-collected DraftKings CSV exports (see below) |
+
+## DraftKings salaries (manual export)
+
+DK's player/salary API (`api.draftkings.com/draftgroups/...`) answers scripts with "Access Denied" (checked 2026-11-15), so salaries are exported by hand and filed by a script. Every slate not exported before lock is lost, so export daily.
+
+1. In the DK lobby, open a contest for the slate (any contest on that slate works: a slate's salaries are the same for all its contests) and click **Export to CSV** on the lineup page. It saves `DKSalaries.csv` to Downloads (`DKSalaries (1).csv` and so on after that).
+2. Export these each day:
+   - NBA: the main Classic slate, plus each Showdown you want.
+   - NFL: the Sunday main Classic slate (it opens early in the week), plus the primetime Showdowns.
+   - CBB, CFB and soccer: optional; export the main Classic slate.
+3. Run `uv run python scripts/dk_ingest.py` (add `--remove` to delete the originals once they are saved).
+
+Each export is saved gzipped as `DATA_DIR/raw/draftkings/<SPORT>/<date>/<HHMM>et_<type>_<n>g_<hash>.csv.gz`: the date and time are the first game's start in ET, the type is classic, showdown or tiers, and the hash is computed from DK's player IDs (each ID belongs to one slate), so a second download of the same slate is skipped. The sport is detected from positions (`--sport` overrides it). `sportsquant.data.dk_salaries.load_all` reads them into one table, with one row per player per roster slot (so a Showdown has a CPT row and a FLEX row for each player) and start times in UTC.
+
+Historical DK salaries (past seasons, for optimizer backtests) still need a source.
 
 ## Alternatives considered
 

@@ -82,7 +82,9 @@
 - [x] CFB game lines pulled, 2020 through 2026-11-14 (2026-11-15).
 - [x] Soccer (EPL, La Liga, UCL) pulled through 2026-11-14 (2026-11-15): lines from June 2020; props from 2024-25 (EPL from April 2024). 2 props snapshots missing (404).
 - [ ] Regenerate the Odds API key (it was printed to a local log on 2026-11-15; redacted since).
-- [ ] DFS salaries and player stats: none collected yet. Salaries (DK/FD) are not in The Odds API; start a daily current-slate collector, and find a historical salary source. Stats are free (nba_api, nflreadpy, CollegeFootballData).
+- [x] DK salary ingest built (2026-11-15): DK's salary API blocks scripts, so salaries are exported by hand (Export to CSV) and filed by `scripts/dk_ingest.py`. How-to: `docs/DATA.md`, "DraftKings salaries".
+- [ ] **Kyle, daily:** export the DK salary CSVs (NBA main Classic + Showdowns; NFL Sunday main + primetime Showdowns), then run `uv run python scripts/dk_ingest.py --remove`.
+- [ ] Historical DK salaries (past seasons) for optimizer backtests: no source yet. Player stats are free (nba_api, nflreadpy, CollegeFootballData), not pulled yet.
 - [ ] Downgrade The Odds API to the 20K plan before 2026-12-12.
 - [x] Windows desktop: repo at `C:\Users\kford\dev\sports-quant-curriculum`, `DATA_DIR` local at `C:\Users\kford\dev\sports-quant-data` (not synced; copy it to any other machine before pulling there).
 - [x] docs/SETUP.md and CLAUDE.md updated: `DATA_DIR` is a local folder, not a synced one.
