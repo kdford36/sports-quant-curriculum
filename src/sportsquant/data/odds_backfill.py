@@ -153,8 +153,10 @@ def calls_for_day(sport: str, product: str, day: date, events: list[dict]) -> li
         cost = estimate_cost("historical_event_odds", markets, regions)
         early = et_clock(day - timedelta(days=days_before), 10)
         out = []
+        # A day-before snapshot can fall before props history starts (the API answers 422).
+        first = [early] if parse_utc(early).date() >= PROPS_START else []
         for g in todays:
-            for when in (early, g["commence_time"]):
+            for when in (*first, g["commence_time"]):
                 if parse_utc(when) <= parse_utc(g["commence_time"]):
                     out.append(Call("event_odds", (sport, g["id"], when, markets, regions),
                                     cost))

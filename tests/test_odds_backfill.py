@@ -112,3 +112,6 @@ def test_soccer_props_early_snapshot_is_the_day_before():
     assert [c.args[2] for c in soccer] == ["2025-03-10T14:00:00Z", "2025-03-11T17:45:00Z"]
     assert all(c.args[4] == ["us"] and c.expected == 50 for c in soccer)
     assert not batches(date(2026, 11, 14), products=["dfs"])  # pick'em props dropped
+    first_day = calls_for_day("soccer_epl", "props", date(2023, 5, 3),
+                              [ev("f", "2023-05-03T19:00:00Z")])
+    assert [c.args[2] for c in first_day] == ["2023-05-03T19:00:00Z"]  # no 2023-05-02 call

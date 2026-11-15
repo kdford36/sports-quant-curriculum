@@ -59,7 +59,20 @@
   | **Total** | **3,463** | **146,951** | **146,951** | **0** | **done 2026-11-15** |
 
   Probes 2026-11-15 (784 credits): pick'em props (`us_dfs`: PrizePicks, Underdog, Pick6) start with the 2024-25 seasons for NBA and NFL; priced and **dropped** (pick'em lines are not DFS salary data). Soccer: Pinnacle and Betfair lines for EPL, La Liga and UCL back to June 2020; sportsbook props (us) for all three, including UCL (DraftKings, FanDuel), though the docs don't list it.
-- **Credits used so far:** 1,688,636 of 5,000,000; remaining 3,311,364 (2026-11-15, after CFB; includes the probes and part of the soccer game lists, which were fetching at the same time).
+  Soccer (EPL, La Liga, UCL), approved 2026-11-15. Lines eu+uk (Pinnacle, Betfair incl. `h2h_lay`) per kickoff slot from the June 2020 restart; props (us: DraftKings, FanDuel, BetMGM, Bovada, BetRivers) at 10 AM ET the day before and at kickoff. Soccer game lists are fetched at 4 AM ET.
+
+  | Step | Calls | Est (max) | Spent (headers) | Errors | Status |
+  |---|---|---|---|---|---|
+  | Soccer game lists (2 runs; the first stopped on a 502) | ~5,660 | ~5,600 | ~5,660 | 0 | done |
+  | Test days (EPL, La Liga 2025-03-15; UCL 2025-03-11) | 24 | 1,780 | 1,280 | 0 | done |
+  | Lines: EPL / La Liga / UCL | 4,231 | 251,340 | 251,040 | 0 | done |
+  | Props: EPL / La Liga / UCL | 6,337 | 318,950 | 190,500 | 7 | done |
+  | **Total** | | **~577,700** | **~448,500** | **7** | **done 2026-11-15** |
+
+  Lines matched the estimate exactly (the small gap is test-day files already on disk). Props data starts later than the API's general 2023-05-03: **EPL 2024-04-26, La Liga 2024-08-22, UCL 2025-03-03**; earlier calls returned nothing and cost 0. By league, props spent EPL 87,370, La Liga 76,990, UCL 26,140 (UCL offers 4 markets, no cards).
+  Errors: 5 × 422 were day-before snapshots on 2023-05-02, before props history (planner fixed to skip them); 2 × 404 (event gone, cost 0) failed again on retry and are permanent gaps.
+- **Security, 2026-11-15:** a 502 traceback printed the request URL, including the API key, into `backfill_soccer_plan.log` and a task output file. Both are redacted, the key never reached git, and the client now raises errors without the key (tested). **Kyle: regenerate the key on The Odds API and type the new one into `.env`.**
+- **Credits used so far:** 2,133,652 of 5,000,000; remaining 2,866,348 (2026-11-15, all approved pulls complete).
 
 ## Open items
 
@@ -67,7 +80,8 @@
 - [x] NBA game lines pulled, 2019-20 bubble through 2026-11-11 (2026-11-12).
 - [x] NFL props pulled, 2023-24 through 2026-11-11 (2026-11-12). 1 early snapshot missing (404).
 - [x] CFB game lines pulled, 2020 through 2026-11-14 (2026-11-15).
-- [ ] Soccer (EPL, La Liga, UCL): lines from June 2020, sportsbook props from May 2023. Game lists fetching; exact cost then Kyle's yes.
+- [x] Soccer (EPL, La Liga, UCL) pulled through 2026-11-14 (2026-11-15): lines from June 2020; props from 2024-25 (EPL from April 2024). 2 props snapshots missing (404).
+- [ ] Regenerate the Odds API key (it was printed to a local log on 2026-11-15; redacted since).
 - [ ] DFS salaries and player stats: none collected yet. Salaries (DK/FD) are not in The Odds API; start a daily current-slate collector, and find a historical salary source. Stats are free (nba_api, nflreadpy, CollegeFootballData).
 - [ ] Downgrade The Odds API to the 20K plan before 2026-12-12.
 - [x] Windows desktop: repo at `C:\Users\kford\dev\sports-quant-curriculum`, `DATA_DIR` local at `C:\Users\kford\dev\sports-quant-data` (not synced; copy it to any other machine before pulling there).
