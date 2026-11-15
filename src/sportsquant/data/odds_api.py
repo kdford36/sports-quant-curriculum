@@ -30,6 +30,8 @@ from typing import Any
 
 import requests
 
+RETRY_STATUS = {429, 500, 502, 503, 504}
+
 BASE_URL = "https://api.the-odds-api.com/v4"
 
 # Credit multiplier per endpoint kind: cost = multiplier × markets × regions.
@@ -126,7 +128,7 @@ class OddsApiClient:
         Without this, ``remaining`` is None until the first paid response arrives, so
         the floor check cannot protect the first paid call of a run.
         """
-        self._request("/sports", {}).raise_for_status()
+        self._check(self._request("/sports", {}), "/sports")
         return self.summary()
 
     # ---- public endpoints -------------------------------------------------
@@ -183,7 +185,7 @@ class OddsApiClient:
             )
 
         resp = self._request(url_path, params)
-        resp.raise_for_status()  # nothing is saved for an error response
+        self._check(resp, url_path)  # nothing is saved for an error response
         body = resp.json()
 
         # Rule 1: save raw before anyone parses it. Key is never written to disk.
@@ -207,16 +209,33 @@ class OddsApiClient:
         return Fetch(body, cached=False, credits_cost=cost, path=path)
 
     def _request(self, url_path: str, params: dict[str, str]):
-        """GET with the key attached. Waits and retries on 429 (rate limited): 1s, 2s, 4s..."""
+        """GET with the key attached. Waits and retries on 429 (rate limited) and on 5xx
+        (server hiccups): 1s, 2s, 4s...
+
+        The key is in the URL, and requests puts the URL in its error messages, so any
+        network error is re-raised with the key blanked out.
+        """
         for attempt in range(self.max_retries + 1):
-            resp = self.session.get(self.base_url + url_path,
-                                    params={**params, "apiKey": self._api_key},
-                                    timeout=self.timeout)
+            try:
+                resp = self.session.get(self.base_url + url_path,
+                                        params={**params, "apiKey": self._api_key},
+                                        timeout=self.timeout)
+            except requests.RequestException as e:
+                raise type(e)(self._redact(str(e))) from None
             self._read_credit_headers(resp.headers)
-            if resp.status_code != 429 or attempt == self.max_retries:
+            if resp.status_code not in RETRY_STATUS or attempt == self.max_retries:
                 return resp
             self._sleep(2 ** attempt)
         raise AssertionError("unreachable")
+
+    def _check(self, resp, url_path: str) -> None:
+        """raise_for_status without the key: its message would include the full URL."""
+        if resp.status_code >= 400:
+            raise requests.HTTPError(f"{resp.status_code} {resp.reason} for {url_path}",
+                                     response=resp)
+
+    def _redact(self, text: str) -> str:
+        return text.replace(self._api_key, "REDACTED") if self._api_key else text
 
     def _read_credit_headers(self, headers) -> None:
         if (rem := _int(headers.get("x-requests-remaining"))) is not None:

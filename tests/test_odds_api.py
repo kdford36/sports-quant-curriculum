@@ -6,6 +6,7 @@ import gzip
 import json
 
 import pytest
+import requests
 
 from sportsquant.data.odds_api import (
     CreditFloorError,
@@ -21,13 +22,10 @@ NBA_PROPS = ["player_points", "player_rebounds", "player_assists", "player_three
 class FakeResponse:
     def __init__(self, body, headers, status=200):
         self._body, self.headers, self.status_code = body, headers, status
+        self.reason = "OK" if status < 400 else "Error"
 
     def json(self):
         return self._body
-
-    def raise_for_status(self):
-        if self.status_code >= 400:
-            raise RuntimeError(f"HTTP {self.status_code}")
 
 
 class FakeSession:
@@ -115,7 +113,7 @@ def test_stops_before_crossing_floor(tmp_path):
 
 def test_error_response_saves_nothing(tmp_path):
     client, _ = make_client(tmp_path, status=422)
-    with pytest.raises(RuntimeError):
+    with pytest.raises(requests.HTTPError):
         client.historical_events("basketball_nba", "2024-12-01T16:00:00Z")
     assert not list(tmp_path.rglob("*.json.gz"))
 
@@ -132,17 +130,45 @@ def test_sync_credits_arms_floor_before_first_paid_call(tmp_path):
 
 
 class RateLimitedSession(FakeSession):
-    """Answers 429 for the first ``n_limited`` calls, then behaves normally."""
+    """Answers ``bad_status`` (429 by default) for the first ``n_limited`` calls."""
 
-    def __init__(self, n_limited, **kwargs):
+    def __init__(self, n_limited, bad_status=429, **kwargs):
         super().__init__(**kwargs)
-        self.n_limited = n_limited
+        self.n_limited, self.bad_status = n_limited, bad_status
 
     def get(self, url, params, timeout):
         if len(self.calls) < self.n_limited:
             self.calls.append((url, params))
-            return FakeResponse({}, {}, status=429)
+            return FakeResponse({}, {}, status=self.bad_status)
         return super().get(url, params, timeout)
+
+
+def test_retries_a_502_server_error(tmp_path):
+    session = RateLimitedSession(n_limited=1, bad_status=502)
+    client = OddsApiClient("SECRET", tmp_path, plan_credits=5_000_000, session=session,
+                           sleep=lambda s: None)
+    assert client.historical_events("basketball_nba", "2024-12-01T16:00:00Z").credits_cost == 1
+    assert len(session.calls) == 2
+
+
+def test_errors_never_contain_the_key(tmp_path):
+    client = OddsApiClient("SECRET", tmp_path, plan_credits=5_000_000,
+                           session=RateLimitedSession(n_limited=99, bad_status=502),
+                           sleep=lambda s: None, max_retries=1)
+    with pytest.raises(requests.HTTPError) as http_err:
+        client.historical_events("basketball_nba", "2024-12-01T16:00:00Z")
+    assert "502" in str(http_err.value) and "SECRET" not in str(http_err.value)
+
+    class DeadSession:
+        def get(self, url, params, timeout):
+            raise requests.ConnectionError(f"Max retries exceeded with url: {url}?apiKey="
+                                           f"{params['apiKey']}")
+
+    client = OddsApiClient("SECRET", tmp_path, plan_credits=5_000_000, session=DeadSession())
+    with pytest.raises(requests.ConnectionError) as net_err:
+        client.historical_events("basketball_nba", "2024-12-01T16:00:00Z")
+    assert "SECRET" not in str(net_err.value) and "REDACTED" in str(net_err.value)
+    assert net_err.value.__cause__ is None and net_err.value.__suppress_context__
 
 
 def test_retries_on_429_with_backoff(tmp_path):
@@ -159,7 +185,7 @@ def test_gives_up_after_max_retries_and_saves_nothing(tmp_path):
     session = RateLimitedSession(n_limited=99)
     client = OddsApiClient("SECRET", tmp_path, plan_credits=5_000_000, session=session,
                            sleep=lambda s: None, max_retries=2)
-    with pytest.raises(RuntimeError, match="429"):
+    with pytest.raises(requests.HTTPError, match="429"):
         client.historical_events("basketball_nba", "2024-12-01T16:00:00Z")
     assert len(session.calls) == 3
     assert not list(tmp_path.rglob("*.json.gz"))
