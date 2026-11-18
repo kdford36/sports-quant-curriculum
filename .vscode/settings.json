@@ -4,6 +4,8 @@
   "python.testing.pytestArgs": ["tests"],
   "jupyter.notebookFileRoot": "${workspaceFolder}",
   "files.eol": "\n",
+  "editor.inlineSuggest.enabled": false,
+  "github.copilot.enable": { "*": false },
   "[python]": {
     "editor.rulers": [100]
   }

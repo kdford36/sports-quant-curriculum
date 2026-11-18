@@ -18,10 +18,14 @@ After you approve the estimate, the follow-up prompt is simply:
 
 > Approved. Run the backfill in batches, log credits after each batch, and update PROGRESS.md as it goes.
 
-## Session B: Lesson 0-01 (Monday, Nov 16)
+## Session B: Lesson 0-01
 
-> Start lesson 0-01 following the session protocol in CLAUDE.md.
+> Start lesson 0-01 following the session protocol in CLAUDE.md. I write the code; you give me the spec and failing tests, coach me with the hint ladder and review what I write.
 
 From then on, every session can start with:
 
 > Next lesson.
+
+On days without a lesson, a drill on its own:
+
+> Next drill.

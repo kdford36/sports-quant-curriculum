@@ -2,7 +2,7 @@
 
 A self-directed curriculum in machine learning, applied mathematics and statistics, built around sportsbook and DFS pricing problems on NBA, NFL and college basketball data.
 
-Each lesson pairs a concept (with the math written out) with code built and debugged together in Claude Code. A parallel proof track works through the central results in probability, linear algebra, optimization and inference.
+Each lesson pairs a concept (with the math written out) with code I write myself against tests, coached and reviewed in Claude Code. Short timed coding drills run alongside, and a parallel proof track works through the central results in probability, linear algebra, optimization and inference.
 
 ## Capstones
 
@@ -14,6 +14,7 @@ Each lesson pairs a concept (with the math written out) with code built and debu
 
 ```
 lessons/           one notebook per lesson
+drills/            short timed coding drills
 src/sportsquant/   reusable code (odds, de-vig, ratings, optimizer, simulation)
 tests/             pytest suite
 proofs/            proofs in Markdown + LaTeX

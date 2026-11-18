@@ -2,10 +2,12 @@
 
 ## Current position
 
-- **Phase:** 0 (Code literacy), not started
-- **Next lesson:** 0-01, NumPy arrays and broadcasting
-- **Week 1 starts:** 2026-11-16
-- **Next mock interview:** end of week 2 (2026-11-29)
+- **Phase:** 0 (Code writing, 3 weeks), not started
+- **Mode (since 2026-11-18):** Kyle writes the lesson code; Claude writes specs and tests, coaches and reviews. See CLAUDE.md, "Division of labor".
+- **Next lesson:** 0-01, Python core and NumPy arrays: write functions from a spec, run pytest, read a traceback
+- **Next drill:** D-001 (Python warm-up)
+- **Week 1 starts:** 2026-11-16 (core now ends about 2027-05-23)
+- **Next mock interview:** end of week 2 (2026-11-29), including a live-coding segment
 
 ## Odds API plan
 
@@ -100,8 +102,18 @@ From the Odds API code walkthrough (2026-11-12):
 
 ## Lesson log
 
-| Date | Lesson | Quiz score | Notes |
-| --- | --- | --- | --- |
+| Date | Lesson | Quiz score | Highest hint rung | Notes |
+| --- | --- | --- | --- | --- |
+
+## Drill log
+
+| Date | Drill | Type | Time | Passed | Highest hint rung | Repeat on |
+| --- | --- | --- | --- | --- | --- | --- |
+
+## Coding checkpoints
+
+| Phase | Date | Time | Passed | Notes |
+| --- | --- | --- | --- | --- |
 
 ## Mock interviews
 
